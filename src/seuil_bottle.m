@@ -13,9 +13,16 @@ function [seuil, calibre, reference] = seuil_bottle(dossierProjet)
     if nargout >= 3
         fichier = fullfile(dossierProjet, 'calibrationBottleReference.mat');
         mesure = dir(fichier);
-        if ~isempty(mesure) && mesure.datenum >= modele.datenum
-            valeurs = load(fichier, 'seuil', 'reference');
-            if isfield(valeurs, 'reference') && isequal(size(valeurs.reference), [128 128]) ...
+        if ~isempty(mesure)
+            valeurs = load(fichier, 'seuil', 'reference', 'modeleSHA256');
+            if isfield(valeurs, 'modeleSHA256')
+                modeleCompatible = strcmp(valeurs.modeleSHA256, ...
+                    empreinte_modele(fullfile(dossierProjet, 'netCAE.mat')));
+            else
+                modeleCompatible = mesure.datenum >= modele.datenum;
+            end
+            if modeleCompatible && isfield(valeurs, 'reference') ...
+                    && isequal(size(valeurs.reference), [128 128]) ...
                     && all(isfinite(valeurs.reference(:))) && seuilValide(valeurs)
                 seuil = valeurs.seuil;
                 reference = valeurs.reference;

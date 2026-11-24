@@ -6,7 +6,8 @@ Projet MATLAB de BUT GEII sur la classification des défauts de surface sur le m
 
 - `src/` contient les scripts de prétraitement, d’entraînement, de validation et d’interface.
 - `rapport/notes.mlx` contient le Live Script du projet.
-- `netCAE.mat` contient l’autoencodeur entraîné.
+- `InspectionApp.mlapp` ouvre l’interface dans App Designer.
+- `netCAE.mat` contient l’autoencodeur entraîné et `calibrationBottleReference.mat` contient sa calibration Bottle.
 
 ## Lancer l’inspection
 
@@ -19,7 +20,7 @@ Projet MATLAB de BUT GEII sur la classification des défauts de surface sur le m
    interface_appli
    ```
 
-La version App Designer utilise `InspectionApp.mlapp` à la racine et `src/construireInspectionApp.m` pour construire l’interface au démarrage.
+Pour utiliser App Designer, ouvrir `InspectionApp.mlapp` à la racine et cliquer sur **Run**. L’app utilise la calibration fournie pour le modèle Bottle.
 
 ## Reproduire la calibration et la validation
 

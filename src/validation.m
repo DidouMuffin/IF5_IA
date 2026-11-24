@@ -102,4 +102,6 @@ confusionchart(categorical(double(reel), [0 1], categoriesBottle), ...
     categorical(double(predit), [0 1], categoriesBottle));
 title('Bottle - score avec référence, validation hors calibration');
 
-save(fullfile(dossierProjet, 'calibrationBottleReference.mat'), 'seuil', 'reference');
+modeleSHA256 = empreinte_modele(fullfile(dossierProjet, 'netCAE.mat'));
+save(fullfile(dossierProjet, 'calibrationBottleReference.mat'), ...
+    'seuil', 'reference', 'modeleSHA256');
