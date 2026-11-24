@@ -5,9 +5,13 @@ clear;
 clc;
 close all;
 
+dossierSrc = fileparts(mfilename('fullpath'));
+dossierProjet = fileparts(dossierSrc);
+addpath(dossierSrc);
+
 %% Chargement de la base de donnees
 
-root = fullfile(pwd, 'data', 'train');
+root = fullfile(dossierProjet, 'data', 'train');
 
 imds = imageDatastore(root, ...
     'IncludeSubfolders', true, ...

@@ -1,15 +1,34 @@
 # IF5 — Détection de défauts industriels
 
-Projet MATLAB de BUT GEII sur la classification de défauts de surface et la détection d’anomalies dans des images industrielles.
+Projet MATLAB de BUT GEII sur la classification des défauts de surface sur le métal (NEU) et la détection d’anomalies sur des bouteilles (MVTec AD).
 
 ## Fichiers du projet
 
-- `src/` contient les scripts de prétraitement, de classification, d’autoencodage, de validation et l’interface `interface_appli.m`.
+- `src/` contient les scripts de prétraitement, d’entraînement, de validation et d’interface.
 - `rapport/notes.mlx` contient le Live Script du projet.
 - `netCAE.mat` contient l’autoencodeur entraîné.
 
-## Lancer le projet
+## Lancer l’inspection
 
-Ouvrir la racine du dépôt comme dossier courant dans MATLAB et exécuter `addpath('src')`. Ouvrir `rapport/notes.mlx` et exécuter les sections depuis cette racine, ou lancer `interface_appli` pour ouvrir l’interface.
+1. Ouvrir la racine du dépôt comme dossier courant dans MATLAB avec Image Processing Toolbox et Deep Learning Toolbox.
+2. Pour le mode métal, placer le modèle `netTL.mat` de l’archive du projet à la racine. Il est aussi possible de le générer avec `train_supervise`, avec les images NEU et le module ResNet-18 installés.
+3. Depuis la fenêtre de commandes MATLAB, lancer l’interface.
 
-Pour reconstituer les ressources de l’archive, copier le contenu de `Projet_Defauts/data/` dans `data/` à la racine du dépôt. Les scripts lisent les six classes du jeu NEU dans `data/train/` et les images MVTec dans `data/mvtec/`. Copier aussi `Projet_Defauts/netTL.mat` à la racine pour la classification dans l’interface et la validation.
+   ```matlab
+   addpath('src')
+   interface_appli
+   ```
+
+La version App Designer utilise `InspectionApp.mlapp` à la racine et `src/construireInspectionApp.m` pour construire l’interface au démarrage.
+
+## Reproduire la calibration et la validation
+
+Copier les dossiers de données de l’archive du projet dans `data/` à la racine.
+
+| Dossier | Contenu |
+| --- | --- |
+| `data/train/` | Images NEU rangées dans les six dossiers de classes |
+| `data/mvtec/bottle/train/good/` | Bouteilles saines pour calculer la carte de référence |
+| `data/mvtec/bottle/test/` | Sous-dossiers `good`, `broken_large`, `broken_small` et `contamination` |
+
+Avec `netTL.mat` et `netCAE.mat` à la racine, exécuter `addpath('src')` puis `validation_industrielle`. Le script compare le score local précédent au score avec carte de référence et enregistre la nouvelle calibration dans `calibrationBottleReference.mat`. Placer ce fichier à côté de `netCAE.mat` pour réutiliser la calibration sur un autre poste.

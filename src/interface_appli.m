@@ -6,6 +6,7 @@ function interface_appli
     imgOrigine = [];
     imgProcess = [];
     netTL = [];
+    netCAE = [];
 
     % Chemin du projet
     dossierSrc = fileparts(mfilename('fullpath'));
@@ -124,12 +125,18 @@ function interface_appli
             sprintf('%.2f', get(src, 'Value'))));
 
 
-    %% Classification par IA - NOUVEAU
+    %% Type de piece et inspection
+
+    popMode = uicontrol('Parent', fig, ...
+        'Style', 'popupmenu', ...
+        'String', {'Metal - NEU', 'Bouteille - MVTec'}, ...
+        'Position', [550 90 170 30], ...
+        'Callback', @onModeChanged);
 
     % Bouton de classification
     uicontrol('Parent', fig, ...
         'Style', 'pushbutton', ...
-        'String', 'Classifier avec IA', ...
+        'String', 'Analyser avec IA', ...
         'Position', [735 85 240 40], ...
         'FontSize', 11, ...
         'FontWeight', 'bold', ...
@@ -174,18 +181,21 @@ function interface_appli
             return;
         end
 
-        % Lecture
-        img = imread(fullfile(path, file));
-
-        % Niveaux de gris
-        if size(img, 3) == 3
-            imgGray = rgb2gray(img);
-        else
-            imgGray = img;
+        try
+            [img, palette] = imread(fullfile(path, file));
+            if ~isempty(palette)
+                img = im2uint8(ind2rgb(img, palette));
+            end
+            if ~ismember(size(img, 3), [1 3])
+                error('Selectionner une image RGB ou en niveaux de gris.');
+            end
+        catch erreur
+            errordlg(erreur.message, 'Lecture de l''image');
+            return;
         end
 
-        imgOrigine = imgGray;
-        imgProcess = imgGray;
+        imgOrigine = img;
+        imgProcess = img;
 
         % Affichage
         imshow(imgOrigine, 'Parent', axOrigine);
@@ -219,6 +229,9 @@ function interface_appli
         end
 
         img = imgOrigine;
+        if size(img, 3) == 3
+            img = rgb2gray(img);
+        end
         val = get(popFilter, 'Value');
         param = get(sldParam, 'Value');
 
@@ -263,58 +276,71 @@ function interface_appli
     end
 
 
-    %% Fonction : Classification ResNet-18 - NOUVEAU
+    %% Fonctions de l'inspection
+
+    function onModeChanged(~, ~)
+        set(lblResultat, 'String', 'Mode modifie');
+        set(lblConfiance, 'String', '');
+        if ~isempty(imgOrigine)
+            imshow(imgOrigine, 'Parent', axProcess);
+            title(axProcess, 'IMAGE A ANALYSER');
+        end
+    end
 
     function onClassifyImage(~, ~)
-
-        % Verification de l'image
         if isempty(imgOrigine)
-            warndlg('Veuillez charger une image.', ...
-                'Aucune image');
+            warndlg('Veuillez charger une image.', 'Aucune image');
             return;
         end
 
-        % Chargement du reseau
-        if isempty(netTL)
+        set(lblResultat, 'String', 'Analyse en cours...');
+        set(lblConfiance, 'String', '');
+        drawnow;
 
-            fichierReseau = fullfile( ...
-                dossierProjet, 'netTL.mat');
-
-            if ~isfile(fichierReseau)
-                errordlg('Fichier netTL.mat introuvable.', ...
-                    'Erreur');
-                return;
+        try
+            if get(popMode, 'Value') == 1
+                if isempty(netTL)
+                    donnees = load(fullfile(dossierProjet, 'netTL.mat'), 'netTL');
+                    netTL = donnees.netTL;
+                end
+                [classe, ~, ~, confiance] = inspectImage(imgOrigine, netTL, [], 'NEU');
+                imshow(imgOrigine, 'Parent', axProcess);
+                title(axProcess, 'IMAGE CLASSEE');
+                set(lblResultat, 'String', ['Defaut NEU : ', classe]);
+                set(lblConfiance, 'String', sprintf('Confiance : %.2f %%', 100 * confiance));
+            else
+                if isempty(netCAE)
+                    donnees = load(fullfile(dossierProjet, 'netCAE.mat'), 'netCAE');
+                    netCAE = donnees.netCAE;
+                end
+                [seuil, seuilCalibre, reference] = seuil_bottle(dossierProjet);
+                [~, score, errMap] = inspectImage(imgOrigine, [], netCAE, 'bottle', reference);
+                if isempty(reference)
+                    nomScore = 'Score local';
+                else
+                    nomScore = 'Score avec reference';
+                end
+                if ~seuilCalibre
+                    decision = 'Lancer validation_industrielle pour calibrer';
+                    detail = sprintf('%s : %.5f', nomScore, score);
+                else
+                    if score > seuil
+                        decision = 'Anomalie detectee';
+                    else
+                        decision = 'Aucune anomalie detectee';
+                    end
+                    detail = sprintf('%s : %.5f | Seuil : %.5f', nomScore, score, seuil);
+                end
+                imshow(mat2gray(errMap), 'Parent', axProcess);
+                title(axProcess, 'CARTE D''ERREUR DE RECONSTRUCTION');
+                set(lblResultat, 'String', decision);
+                set(lblConfiance, 'String', detail);
             end
-
-            donnees = load(fichierReseau, 'netTL');
-            netTL = donnees.netTL;
-
+            set(statusBar, 'String', 'Inspection terminee');
+        catch erreur
+            set(lblResultat, 'String', 'Echec de l''inspection');
+            errordlg(erreur.message, 'Inspection');
         end
-
-        % Preparation de l'image
-        img224 = imresize(imgOrigine, [224 224]);
-
-        % Conversion en 3 canaux
-        if size(img224, 3) == 1
-            img224 = repmat(img224, [1 1 3]);
-        end
-
-        % Classification
-        [classe, scores] = classify(netTL, img224);
-
-        % Score de confiance du reseau
-        confiance = max(scores) * 100;
-
-        % Affichage du resultat
-        set(lblResultat, 'String', ...
-            ['Defaut reconnu : ', char(classe)]);
-
-        set(lblConfiance, 'String', ...
-            sprintf('Confiance : %.2f %%', confiance));
-
-        set(statusBar, 'String', ...
-            'Classification terminee');
-
     end
 
 end

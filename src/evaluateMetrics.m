@@ -2,7 +2,8 @@
 function [precision, recall, f1] = evaluateMetrics(YTrue, YPred)
 
     % Matrice de confusion
-    C = confusionmat(YTrue, YPred);
+    ordre = categorical(categories(YTrue), categories(YTrue));
+    C = confusionmat(YTrue, YPred, 'Order', ordre);
 
     % Calcul des vrais positifs
     TP = diag(C);

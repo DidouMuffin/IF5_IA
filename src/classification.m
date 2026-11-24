@@ -5,11 +5,16 @@ clear;
 clc;
 close all;
 
+dossierSrc = fileparts(mfilename('fullpath'));
+dossierProjet = fileparts(dossierSrc);
+addpath(dossierSrc);
+rng(0);
+
 %% Etape 5.a - Chargement du dataset
 
-root = fullfile(pwd, 'data', 'train');
+racineNEU = fullfile(dossierProjet, 'data', 'train');
 
-imds = imageDatastore(root, ...
+imds = imageDatastore(racineNEU, ...
     'IncludeSubfolders', true, ...
     'LabelSource', 'foldernames');
 
@@ -56,25 +61,26 @@ inputSize = [224 224];
 augTrain = augmentedImageDatastore(inputSize, imdsTrain, ...
     'ColorPreprocessing', 'gray2rgb');
 
-augTest = augmentedImageDatastore(inputSize, imdsTest, ...
-    'ColorPreprocessing', 'gray2rgb');
-
 % Parametres d'entrainement
 options = trainingOptions('adam', ...
     'MiniBatchSize', 32, ...
     'MaxEpochs', 6, ...
     'InitialLearnRate', 1e-4, ...
-    'ValidationData', augTest, ...
-    'ValidationFrequency', 10, ...
     'Plots', 'training-progress');
 
 % Entrainement du reseau
 netTL = trainNetwork(augTrain, lgraph, options);
 
+% Enregistrer le modele avant les graphiques et tests de robustesse.
+save(fullfile(dossierProjet, 'netTL.mat'), 'netTL');
+
 %% Etape 6 - Evaluation du modele
 
+augTest = augmentedImageDatastore(inputSize, imdsTest, ...
+    'ColorPreprocessing', 'gray2rgb');
+
 % Classification des images de test
-[YPred, scores] = classify(netTL, augTest);
+YPred = classify(netTL, augTest);
 
 % Categories reelles
 YTest = imdsTest.Labels;
@@ -110,7 +116,8 @@ disp(resultats);
 %% Chapitre 5 - Etape 5.a : Test de robustesse
 
 % Lecture d'une image de test
-I = readimage(imdsTest, 5);
+indexTest = min(5, numel(imdsTest.Files));
+I = readimage(imdsTest, indexTest);
 
 % Redimensionnement
 I = imresize(I, [224 224]);
@@ -134,7 +141,7 @@ classeRotation = classify(netTL, Irot);
 classeBruit = classify(netTL, Inoise);
 
 % Affichage des resultats
-disp(['Classe reelle : ', char(imdsTest.Labels(5))]);
+disp(['Classe reelle : ', char(imdsTest.Labels(indexTest))]);
 disp(['Image originale : ', char(classeOrigine)]);
 disp(['Image avec rotation : ', char(classeRotation)]);
 disp(['Image avec bruit : ', char(classeBruit)]);
@@ -155,15 +162,6 @@ subplot(1, 3, 3);
 imshow(Inoise);
 title('Bruit gaussien');
 
-%% Resultats du test de robustesse
-
-disp(['Classe reelle : ', char(imdsTest.Labels(5))]);
-
-disp(['Image originale : ', char(classeOrigine)]);
-disp(['Image avec rotation : ', char(classeRotation)]);
-disp(['Image avec bruit : ', char(classeBruit)]);
-
-
 %% Etape 5.b - Variation de luminosite
 
 % Modification de la luminosite
@@ -175,7 +173,7 @@ classeSombre = classify(netTL, Isombre);
 classeClair = classify(netTL, Iclair);
 
 % Affichage des resultats
-disp(['Classe reelle : ', char(imdsTest.Labels(5))]);
+disp(['Classe reelle : ', char(imdsTest.Labels(indexTest))]);
 disp(['Image originale : ', char(classeOrigine)]);
 disp(['Image sombre : ', char(classeSombre)]);
 disp(['Image claire : ', char(classeClair)]);
@@ -195,49 +193,3 @@ title('Image assombrie');
 subplot(1, 3, 3);
 imshow(Iclair);
 title('Image eclaircie');
-
-
-%% Sauvegarde du modele ResNet-18
-
-save('netTL.mat', 'netTL');
-
-
-%% Chapitre 5 - Etape 6 : Test de la fonction inspectImage
-
-% Acces aux fonctions du projet
-addpath('src');
-
-% Chargement des modeles sauvegardes
-load('netTL.mat', 'netTL');
-load('netCAE.mat', 'netCAE');
-
-% Test avec une image NEU
-
-imdsNEU = imageDatastore('data/train', ...
-    'IncludeSubfolders', true, ...
-    'LabelSource', 'foldernames');
-
-Ineu = readimage(imdsNEU, 1);
-
-[label, score, errMap] = inspectImage( ...
-    Ineu, netTL, netCAE, 'NEU');
-
-disp(['Defaut reconnu : ', label]);
-
-% Test avec une bouteille
-
-imdsBottle = imageDatastore('data/mvtec/bottle/test', ...
-    'IncludeSubfolders', true, ...
-    'LabelSource', 'foldernames');
-
-Ibottle = readimage(imdsBottle, 15);
-
-[label, score, errMap] = inspectImage( ...
-    Ibottle, netTL, netCAE, 'bottle');
-
-disp(['Score d''anomalie : ', num2str(score)]);
-
-figure;
-imshow(mat2gray(errMap));
-title('Carte d''erreur - Bottle');
-

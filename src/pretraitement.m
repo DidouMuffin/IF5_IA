@@ -1,13 +1,22 @@
-Igray = rgb2gray(I);
-imshow(Igray)
+% Pretraiter une image I deja chargee.
+% Si I est absente, selectionner une image pour executer le script seul.
+if ~exist('I', 'var') || isempty(I)
+    [fichier, dossier] = uigetfile({'*.png;*.jpg;*.jpeg;*.bmp;*.tif', 'Images'});
+    if isequal(fichier, 0)
+        return;
+    end
+    I = imread(fullfile(dossier, fichier));
+end
 
-Ifilt = medfilt2(Igray, [3 3]);
+if size(I, 3) == 3
+    Igray = rgb2gray(I);
+else
+    Igray = I;
+end
 
+Ifilt = medfilt2(Igray, [3 3], 'symmetric');
 Iresize = imresize(Ifilt, [224 224]);
 
-imageAugmenter = imageDataAugmenter( ...
- 'RandRotation',[-10,10], ...
- 'RandXTranslation',[-5,5], ...
- 'RandYTranslation',[-5,5]);
-augimds = augmentedImageDatastore([224 224], imds, 'DataAugmentation',
-imageAugmenter);
+figure;
+imshowpair(Igray, Iresize, 'montage');
+title('Image initiale / Filtre median et redimensionnement');

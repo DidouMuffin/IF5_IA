@@ -4,16 +4,21 @@ clear;
 clc;
 close all;
 
+dossierSrc = fileparts(mfilename('fullpath'));
+dossierProjet = fileparts(dossierSrc);
+addpath(dossierSrc);
+rng(0);
+
 %% Etape 5.a - Preparation des donnees
 
 % Chargement des images normales
 imdsTrain = imageDatastore( ...
-    'data/mvtec/bottle/train/good', ...
+    fullfile(dossierProjet, 'data', 'mvtec', 'bottle', 'train', 'good'), ...
     'FileExtensions', '.png');
 
 % Chargement des images de test
 imdsTest = imageDatastore( ...
-    'data/mvtec/bottle/test', ...
+    fullfile(dossierProjet, 'data', 'mvtec', 'bottle', 'test'), ...
     'IncludeSubfolders', true, ...
     'LabelSource', 'foldernames');
 
@@ -62,7 +67,7 @@ layers = [
     regressionLayer
 ];
 
-%% Etape 5.c - Entrainement de l'autoencodeur 
+%% Etape 5.c - Entrainement de l'autoencodeur
 
 %Preparation des images d'entrainement
 nbImages = numel(imdsTrain.Files);
@@ -94,22 +99,22 @@ netCAE = trainNetwork(XTrain, XTrain, layers, options);
 
 %% Sauvegarde du modele
 
-save('netCAE.mat', 'netCAE');
+save(fullfile(dossierProjet, 'netCAE.mat'), 'netCAE');
 
 
 %% Etape 6 - Test de detection d'anomalies
 
 % Chargement du modele entraine
-load('netCAE.mat', 'netCAE');
+
 
 % Chargement des images de test
 imdsTest = imageDatastore( ...
-    'data/mvtec/bottle/test', ...
+    fullfile(dossierProjet, 'data', 'mvtec', 'bottle', 'test'), ...
     'IncludeSubfolders', true, ...
     'LabelSource', 'foldernames');
 
 % Lecture d'une image
-Itest = readimage(imdsTest, 15);
+Itest = readimage(imdsTest, min(15, numel(imdsTest.Files)));
 
 % Redimensionnement et normalisation
 X = im2single(imresize(Itest, [128 128]));

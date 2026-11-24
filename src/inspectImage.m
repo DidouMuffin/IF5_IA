@@ -1,14 +1,20 @@
 
-function [label, score, errMap] = inspectImage(img, netTL, netCAE, typeImage)
+function [label, score, errMap, confiance, erreurBrute] = inspectImage(img, netTL, netCAE, typeImage, reference)
+
+    if nargin < 5
+        reference = [];
+    end
 
     % Initialisation des resultats
     label = 'Non applicable';
     score = NaN;
     errMap = [];
+    erreurBrute = [];
+    confiance = NaN;
 
     %% Classification supervisee - Base NEU
 
-    if strcmp(typeImage, 'NEU')
+    if strcmpi(typeImage, 'NEU')
 
         % Redimensionnement pour ResNet-18
         img224 = imresize(img, [224 224]);
@@ -19,11 +25,13 @@ function [label, score, errMap] = inspectImage(img, netTL, netCAE, typeImage)
         end
 
         % Classification
-        label = char(classify(netTL, img224));
+        [classe, scores] = classify(netTL, img224);
+        label = char(classe);
+        confiance = max(scores);
 
     %% Detection d'anomalies - Base Bottle
 
-    elseif strcmp(typeImage, 'bottle')
+    elseif strcmpi(typeImage, 'bottle')
 
         % Preparation de l'image
         img128 = im2single(imresize(img, [128 128]));
@@ -37,10 +45,13 @@ function [label, score, errMap] = inspectImage(img, netTL, netCAE, typeImage)
         Xrec = predict(netCAE, img128);
 
         % Calcul de la carte d'erreur
-        errMap = mean((img128 - Xrec).^2, 3);
+        erreurBrute = mean((img128 - Xrec).^2, 3);
 
-        % Calcul du score d'anomalie
-        score = mean(errMap(:));
+        [score, errMap] = score_bouteille(erreurBrute, reference);
+        label = 'Bottle';
+
+    else
+        error('Type inconnu. Choisir NEU ou bottle.');
 
     end
 
